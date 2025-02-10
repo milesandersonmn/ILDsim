@@ -111,3 +111,4 @@ os.getcwd()
 subprocess.run(["/usr/bin/bcftools", "concat", "output1.vcf", "output2.vcf", "output3.vcf", "-o", "concat.vcf"])
 
 subprocess.run(["/home/milesanderson/softwares/GWLD/GWLD-C++/bin/GWLD", "-v", "concat.vcf", "-c", "-o", "glwd", "-m", "RMI"])
+

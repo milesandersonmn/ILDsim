@@ -26,8 +26,8 @@ rate_map = msprime.RateMap(position=map_positions, rate=rates) #Rate map for sep
 
 
 def task(alpha, reps):
-    data = [] #initialize list to store summary statistics 
-    sample_size = 38
+    #data = [] #initialize list to store summary statistics 
+    sample_size = 50
     Ne = 1e5
     for i in range(reps):
         ts = msprime.sim_ancestry( #constant population model with beta coalescent
@@ -203,23 +203,22 @@ def task(alpha, reps):
         summary_statistics.append(np.nanvar(ild_all))
 
         #Append to data list to form data frame outside loop (faster than appending data frame)
-        data.append(summary_statistics)
-    return data
+        #data.append(summary_statistics)
+        x = pd.DataFrame(summary_statistics).T
+
+        x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
+    
 
 if __name__ == '__main__':
     alpha_list = [1.9, 1.7, 1.5, 1.3, 1.1]  # List of values to process
-    reps =   # How many times you want to process each value
+    reps =  250 # How many times you want to process each value
 
     # Create a pool of worker processes
     with multiprocessing.Pool(processes=5) as pool:
         # Use starmap to apply the function with multiple arguments (value and repetitions)
-        results = pool.starmap(task, [(alpha, reps) for alpha in alpha_list])
+        pool.starmap(task, [(alpha, reps) for alpha in alpha_list])
         # Flatten the list since results will be a list of lists
-        flattened_results = [item for sublist in results for item in sublist]
-        summary_list = pd.DataFrame(flattened_results)
+        #flattened_results = [item for sublist in results for item in sublist]
+        #summary_list = pd.DataFrame(flattened_results)
 
-        summary_list.to_csv('summary_statistics_parallel.csv', index = False, mode = 'a')
-
-
-
-
+        #summary_list.to_csv('summary_statistics_test.csv', index = False, mode = 'a')

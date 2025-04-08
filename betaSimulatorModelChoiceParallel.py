@@ -9,7 +9,6 @@ import pandas as pd
 import multiprocessing
 import concurrent.futures
 
-
 r_chrom = 1e-8 #Recombination rate
 r_break = math.log(2) #Recombination rate needed to satisfy probability 2^-t inheritance of two chromsomes
 chrom_positions = [0, 1e6, 2e6, 3e6] #1Mb chromosome sizes

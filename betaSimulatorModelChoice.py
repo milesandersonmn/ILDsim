@@ -25,13 +25,14 @@ rate_map = msprime.RateMap(position=map_positions, rate=rates) #Rate map for sep
 
 alphas_list = [1.9, 1.7, 1.5, 1.3, 1.1]
 var = 0
-for i in range(1250):
+sample_size = 38
+Ne = 1e5
+for i in range(1250): #for loop iterates over alphas_list for a set amount of reps
     
     alpha = alphas_list[var]
     alpha = alpha
-    Ne = 1e5
-    ts = msprime.sim_ancestry(
-        samples = 38,
+    ts = msprime.sim_ancestry( #constant population model with beta coalescent
+        samples = sample_size,
         population_size = Ne,
         recombination_rate = rate_map,
         model=msprime.BetaCoalescent(alpha = alpha),
@@ -39,9 +40,9 @@ for i in range(1250):
     )
     
 
-    mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678)
+    mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
 
-    np.set_printoptions(legacy="1.21")
+    np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
     summary_statistics.append(1) #First column corresponds to model index
     summary_statistics.append(Ne) #Second column is Ne
@@ -57,14 +58,14 @@ for i in range(1250):
 
     afs = mts.allele_frequency_spectrum(span_normalise=False, polarised=False)
 
-    afs_entries = []
+    afs_entries = [] #initialize list of afs entries. Each element corresponds to an allele's frequency as a proportion e.g. singleton, doubleton, etc.
 
-    for x in range(1, 40):
+    for x in range(1, sample_size + 2):
         num_mutations = afs[x]
-        l = [x/76] * int(num_mutations)
-        afs_entries.extend(l)
-    afs_entries = np.array(afs_entries)
-    len(afs_entries)
+        l = [x/(sample_size*2)] * int(num_mutations) #create list of allele frequency with length of number of mutations
+        afs_entries.extend(l) #extend afs_entries list by elements of the new list
+    afs_entries = np.array(afs_entries) 
+    #len(afs_entries)
 
     afs_quant = np.quantile(afs_entries, [0.1, 0.3, 0.5, 0.7, 0.9])
     summary_statistics.append(afs_quant[0]) #8th column is AFS quantile 0.1
@@ -77,13 +78,13 @@ for i in range(1250):
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
-    summary_statistics.append(np.nanmean(D_array))
-    summary_statistics.append(np.nanvar(D_array))
+    summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
+    summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
     
 
 
     ts_chroms = []
-    for j in range(len(chrom_positions) - 1):
+    for j in range(len(chrom_positions) - 1): #split genome into chromosomes
         start, end = chrom_positions[j: j + 2]
         chrom_ts = mts.keep_intervals([[start, end]], simplify=False).trim()
         ts_chroms.append(chrom_ts)
@@ -94,12 +95,12 @@ for i in range(1250):
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
     # print("Calculated r...")
-    s = scipy.spatial.distance.squareform(r ** 2)
+    s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
-    arr = mts.sites_position
-    result = abs(arr[:, None] - arr)
+    arr = mts.sites_position #array of site positions
+    result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-
+    #Get LD only on same chromosomes
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
@@ -112,7 +113,7 @@ for i in range(1250):
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
 
-
+    #Upper triangle of matrix to get rid of duplicated values
     chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
     chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
     chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
@@ -121,10 +122,10 @@ for i in range(1250):
 
     r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
     r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    r2_quant
+    #r2_quant
 
 
-    summary_statistics.append(r2_quant[0])
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
     summary_statistics.append(r2_quant[1])
     summary_statistics.append(r2_quant[2])
     summary_statistics.append(r2_quant[3])
@@ -132,8 +133,9 @@ for i in range(1250):
     summary_statistics.append(np.nanmean(r2))
     summary_statistics.append(np.nanvar(r2))
     
-    scaled_ld = result * s
+    scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
 
@@ -158,7 +160,7 @@ for i in range(1250):
     scaled_r2_quant
 
 
-    summary_statistics.append(scaled_r2_quant[0])
+    summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
     summary_statistics.append(scaled_r2_quant[1])
     summary_statistics.append(scaled_r2_quant[2])
     summary_statistics.append(scaled_r2_quant[3])
@@ -166,6 +168,7 @@ for i in range(1250):
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
 
+    #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
     chrom1_ild = np.matrix.flatten(chrom1_ild)
     chrom2_ild_a = s[chrom1_mut_num:chrom1and2_mut_num,chrom1and2_mut_num:]
@@ -175,14 +178,14 @@ for i in range(1250):
     chrom2_ild = np.concatenate((chrom2_ild_a, chrom2_ild_b))
     chrom3_ild = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:chrom3_mut_num]
     chrom3_ild = np.matrix.flatten(chrom3_ild)
-    np.nanmean(chrom2_ild)
+    #np.nanmean(chrom2_ild)
 
 
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
 
-    summary_statistics.append(ild_quant[0])
+    summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
     summary_statistics.append(ild_quant[2])
     summary_statistics.append(ild_quant[3])
@@ -190,16 +193,13 @@ for i in range(1250):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    #Append to data list to form data frame outside loop (faster than appending data frame)
     data.append(summary_statistics)
     print(var)
     print(i)
-    if (i+1) % 250 == 0:
+    if (i+1) % 250 == 0: #modulo to set number of iteration of the loop for each alpha value
         var += 1
 
 x = pd.DataFrame(data)
 
 x.to_csv('summary_statistics.csv', index = False)
-
-
-
-

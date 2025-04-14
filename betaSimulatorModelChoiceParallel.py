@@ -1,13 +1,11 @@
 import msprime
 import numpy as np
-import matplotlib.pyplot as plt
 import math
 import tskit
 import scipy
 import allel
-import pandas as pd
-import multiprocessing
-import concurrent.futures
+from pandas import DataFrame
+
 
 r_chrom = 1e-8 #Recombination rate
 r_break = math.log(2) #Recombination rate needed to satisfy probability 2^-t inheritance of two chromsomes
@@ -24,7 +22,11 @@ rates = [r_chrom, r_break, r_chrom, r_break, r_chrom]
 rate_map = msprime.RateMap(position=map_positions, rate=rates) #Rate map for separate chromosomes
 
 
+
 def alpha1_9(arg):
+    
+    #del r_chrom, r_break, map_positions, rates
+
     #data = [] #initialize list to store summary statistics 
     alpha = 1.9
     sample_size = 50
@@ -38,8 +40,11 @@ def alpha1_9(arg):
         #random_seed=1234,
     )
 
+    #del rate_map
 
     mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
+
+    
 
     np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
@@ -83,14 +88,15 @@ def alpha1_9(arg):
     summary_statistics.append(afs_quant[3]) #11th column 0.7
     summary_statistics.append(afs_quant[4]) #12th column 0.9
 
-
+    del afs_entries
+    del afs_quant
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
 
-
+    del D_array
 
     ts_chroms = []
     for j in range(len(chrom_positions) - 1): #split genome into chromosomes
@@ -99,51 +105,22 @@ def alpha1_9(arg):
         ts_chroms.append(chrom_ts)
         #print(chrom_ts.sequence_length)
 
+    
 
     gn = mts.genotype_matrix()
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
+
+    del gn
     # print("Calculated r...")
     s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
     arr = mts.sites_position #array of site positions
     result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-    #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
-    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
-
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
-    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
-
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
-    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-
-
-    #Upper triangle of matrix to get rid of duplicated values
-    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
-    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
-    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
-
-
-
-    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
-    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    #r2_quant
-
-
-    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
-    summary_statistics.append(r2_quant[1])
-    summary_statistics.append(r2_quant[2])
-    summary_statistics.append(r2_quant[3])
-    summary_statistics.append(r2_quant[4])
-    summary_statistics.append(np.nanmean(r2))
-    summary_statistics.append(np.nanvar(r2))
-
     scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    del arr, result, ts
     #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
@@ -156,7 +133,7 @@ def alpha1_9(arg):
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_scaled_ld = scaled_ld[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
-
+    
 
     chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld)]
     chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld)]
@@ -165,8 +142,10 @@ def alpha1_9(arg):
 
 
     scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+
+    del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
     scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
-    scaled_r2_quant
 
 
     summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
@@ -176,6 +155,44 @@ def alpha1_9(arg):
     summary_statistics.append(scaled_r2_quant[4])
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
+
+    del scaled_r2, scaled_r2_quant, scaled_ld
+    
+    #Get LD only on same chromosomes
+    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
+
+    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
+    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+
+    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
+    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+
+    
+    #Upper triangle of matrix to get rid of duplicated values
+    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
+    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
+
+
+
+    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
+    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
+    
+    del chrom1_ld, chrom2_ld, chrom3_ld
+
+
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[1])
+    summary_statistics.append(r2_quant[2])
+    summary_statistics.append(r2_quant[3])
+    summary_statistics.append(r2_quant[4])
+    summary_statistics.append(np.nanmean(r2))
+    summary_statistics.append(np.nanvar(r2))
+
+    del r2, r2_quant
 
     #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
@@ -189,10 +206,11 @@ def alpha1_9(arg):
     chrom3_ild = np.matrix.flatten(chrom3_ild)
     #np.nanmean(chrom2_ild)
 
-
+    del chrom1_mut_num, chrom2_mut_num, chrom3_mut_num, chrom1and2_mut_num, total_mut_num
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
+    del chrom1_ild, chrom2_ild, chrom3_ild
 
     summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
@@ -202,15 +220,15 @@ def alpha1_9(arg):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    del ild_all, ild_quant
     #Append to data list to form data frame outside loop (faster than appending data frame)
     #data.append(summary_statistics)
-    x = pd.DataFrame(summary_statistics).T
+    x = DataFrame(summary_statistics).T
 
     x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
     
 
 def alpha1_7(arg):
-    #data = [] #initialize list to store summary statistics 
     alpha = 1.7
     sample_size = 50
     Ne = 1e5
@@ -223,8 +241,11 @@ def alpha1_7(arg):
         #random_seed=1234,
     )
 
+    #del rate_map
 
     mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
+
+    
 
     np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
@@ -268,14 +289,15 @@ def alpha1_7(arg):
     summary_statistics.append(afs_quant[3]) #11th column 0.7
     summary_statistics.append(afs_quant[4]) #12th column 0.9
 
-
+    del afs_entries
+    del afs_quant
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
 
-
+    del D_array
 
     ts_chroms = []
     for j in range(len(chrom_positions) - 1): #split genome into chromosomes
@@ -284,51 +306,22 @@ def alpha1_7(arg):
         ts_chroms.append(chrom_ts)
         #print(chrom_ts.sequence_length)
 
+    
 
     gn = mts.genotype_matrix()
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
+
+    del gn
     # print("Calculated r...")
     s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
     arr = mts.sites_position #array of site positions
     result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-    #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
-    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
-
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
-    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
-
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
-    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-
-
-    #Upper triangle of matrix to get rid of duplicated values
-    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
-    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
-    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
-
-
-
-    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
-    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    #r2_quant
-
-
-    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
-    summary_statistics.append(r2_quant[1])
-    summary_statistics.append(r2_quant[2])
-    summary_statistics.append(r2_quant[3])
-    summary_statistics.append(r2_quant[4])
-    summary_statistics.append(np.nanmean(r2))
-    summary_statistics.append(np.nanvar(r2))
-
     scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    del arr, result, ts
     #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
@@ -341,7 +334,7 @@ def alpha1_7(arg):
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_scaled_ld = scaled_ld[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
-
+    
 
     chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld)]
     chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld)]
@@ -350,8 +343,10 @@ def alpha1_7(arg):
 
 
     scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+
+    del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
     scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
-    scaled_r2_quant
 
 
     summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
@@ -361,6 +356,44 @@ def alpha1_7(arg):
     summary_statistics.append(scaled_r2_quant[4])
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
+
+    del scaled_r2, scaled_r2_quant, scaled_ld
+    
+    #Get LD only on same chromosomes
+    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
+
+    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
+    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+
+    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
+    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+
+    
+    #Upper triangle of matrix to get rid of duplicated values
+    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
+    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
+
+
+
+    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
+    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
+    
+    del chrom1_ld, chrom2_ld, chrom3_ld
+
+
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[1])
+    summary_statistics.append(r2_quant[2])
+    summary_statistics.append(r2_quant[3])
+    summary_statistics.append(r2_quant[4])
+    summary_statistics.append(np.nanmean(r2))
+    summary_statistics.append(np.nanvar(r2))
+
+    del r2, r2_quant
 
     #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
@@ -374,10 +407,11 @@ def alpha1_7(arg):
     chrom3_ild = np.matrix.flatten(chrom3_ild)
     #np.nanmean(chrom2_ild)
 
-
+    del chrom1_mut_num, chrom2_mut_num, chrom3_mut_num, chrom1and2_mut_num, total_mut_num
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
+    del chrom1_ild, chrom2_ild, chrom3_ild
 
     summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
@@ -387,13 +421,17 @@ def alpha1_7(arg):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    del ild_all, ild_quant
     #Append to data list to form data frame outside loop (faster than appending data frame)
     #data.append(summary_statistics)
-    x = pd.DataFrame(summary_statistics).T
+    x = DataFrame(summary_statistics).T
 
     x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
-    
+
 def alpha1_5(arg):
+       
+    #del r_chrom, r_break, map_positions, rates
+
     #data = [] #initialize list to store summary statistics 
     alpha = 1.5
     sample_size = 50
@@ -407,8 +445,11 @@ def alpha1_5(arg):
         #random_seed=1234,
     )
 
+    #del rate_map
 
     mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
+
+    
 
     np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
@@ -452,14 +493,15 @@ def alpha1_5(arg):
     summary_statistics.append(afs_quant[3]) #11th column 0.7
     summary_statistics.append(afs_quant[4]) #12th column 0.9
 
-
+    del afs_entries
+    del afs_quant
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
 
-
+    del D_array
 
     ts_chroms = []
     for j in range(len(chrom_positions) - 1): #split genome into chromosomes
@@ -468,51 +510,22 @@ def alpha1_5(arg):
         ts_chroms.append(chrom_ts)
         #print(chrom_ts.sequence_length)
 
+    
 
     gn = mts.genotype_matrix()
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
+
+    del gn
     # print("Calculated r...")
     s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
     arr = mts.sites_position #array of site positions
     result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-    #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
-    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
-
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
-    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
-
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
-    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-
-
-    #Upper triangle of matrix to get rid of duplicated values
-    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
-    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
-    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
-
-
-
-    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
-    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    #r2_quant
-
-
-    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
-    summary_statistics.append(r2_quant[1])
-    summary_statistics.append(r2_quant[2])
-    summary_statistics.append(r2_quant[3])
-    summary_statistics.append(r2_quant[4])
-    summary_statistics.append(np.nanmean(r2))
-    summary_statistics.append(np.nanvar(r2))
-
     scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    del arr, result, ts
     #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
@@ -525,7 +538,7 @@ def alpha1_5(arg):
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_scaled_ld = scaled_ld[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
-
+    
 
     chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld)]
     chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld)]
@@ -534,8 +547,10 @@ def alpha1_5(arg):
 
 
     scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+
+    del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
     scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
-    scaled_r2_quant
 
 
     summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
@@ -545,6 +560,44 @@ def alpha1_5(arg):
     summary_statistics.append(scaled_r2_quant[4])
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
+
+    del scaled_r2, scaled_r2_quant, scaled_ld
+    
+    #Get LD only on same chromosomes
+    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
+
+    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
+    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+
+    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
+    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+
+    
+    #Upper triangle of matrix to get rid of duplicated values
+    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
+    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
+
+
+
+    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
+    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
+    
+    del chrom1_ld, chrom2_ld, chrom3_ld
+
+
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[1])
+    summary_statistics.append(r2_quant[2])
+    summary_statistics.append(r2_quant[3])
+    summary_statistics.append(r2_quant[4])
+    summary_statistics.append(np.nanmean(r2))
+    summary_statistics.append(np.nanvar(r2))
+
+    del r2, r2_quant
 
     #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
@@ -558,10 +611,11 @@ def alpha1_5(arg):
     chrom3_ild = np.matrix.flatten(chrom3_ild)
     #np.nanmean(chrom2_ild)
 
-
+    del chrom1_mut_num, chrom2_mut_num, chrom3_mut_num, chrom1and2_mut_num, total_mut_num
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
+    del chrom1_ild, chrom2_ild, chrom3_ild
 
     summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
@@ -571,13 +625,17 @@ def alpha1_5(arg):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    del ild_all, ild_quant
     #Append to data list to form data frame outside loop (faster than appending data frame)
     #data.append(summary_statistics)
-    x = pd.DataFrame(summary_statistics).T
+    x = DataFrame(summary_statistics).T
 
     x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
-    
+
 def alpha1_3(arg):
+       
+    #del r_chrom, r_break, map_positions, rates
+
     #data = [] #initialize list to store summary statistics 
     alpha = 1.3
     sample_size = 50
@@ -591,8 +649,11 @@ def alpha1_3(arg):
         #random_seed=1234,
     )
 
+    #del rate_map
 
     mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
+
+    
 
     np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
@@ -636,14 +697,15 @@ def alpha1_3(arg):
     summary_statistics.append(afs_quant[3]) #11th column 0.7
     summary_statistics.append(afs_quant[4]) #12th column 0.9
 
-
+    del afs_entries
+    del afs_quant
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
 
-
+    del D_array
 
     ts_chroms = []
     for j in range(len(chrom_positions) - 1): #split genome into chromosomes
@@ -652,51 +714,22 @@ def alpha1_3(arg):
         ts_chroms.append(chrom_ts)
         #print(chrom_ts.sequence_length)
 
+    
 
     gn = mts.genotype_matrix()
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
+
+    del gn
     # print("Calculated r...")
     s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
     arr = mts.sites_position #array of site positions
     result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-    #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
-    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
-
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
-    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
-
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
-    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-
-
-    #Upper triangle of matrix to get rid of duplicated values
-    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
-    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
-    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
-
-
-
-    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
-    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    #r2_quant
-
-
-    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
-    summary_statistics.append(r2_quant[1])
-    summary_statistics.append(r2_quant[2])
-    summary_statistics.append(r2_quant[3])
-    summary_statistics.append(r2_quant[4])
-    summary_statistics.append(np.nanmean(r2))
-    summary_statistics.append(np.nanvar(r2))
-
     scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    del arr, result, ts
     #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
@@ -709,7 +742,7 @@ def alpha1_3(arg):
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_scaled_ld = scaled_ld[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
-
+    
 
     chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld)]
     chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld)]
@@ -718,8 +751,10 @@ def alpha1_3(arg):
 
 
     scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+
+    del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
     scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
-    scaled_r2_quant
 
 
     summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
@@ -729,6 +764,44 @@ def alpha1_3(arg):
     summary_statistics.append(scaled_r2_quant[4])
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
+
+    del scaled_r2, scaled_r2_quant, scaled_ld
+    
+    #Get LD only on same chromosomes
+    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
+
+    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
+    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+
+    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
+    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+
+    
+    #Upper triangle of matrix to get rid of duplicated values
+    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
+    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
+
+
+
+    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
+    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
+    
+    del chrom1_ld, chrom2_ld, chrom3_ld
+
+
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[1])
+    summary_statistics.append(r2_quant[2])
+    summary_statistics.append(r2_quant[3])
+    summary_statistics.append(r2_quant[4])
+    summary_statistics.append(np.nanmean(r2))
+    summary_statistics.append(np.nanvar(r2))
+
+    del r2, r2_quant
 
     #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
@@ -742,10 +815,11 @@ def alpha1_3(arg):
     chrom3_ild = np.matrix.flatten(chrom3_ild)
     #np.nanmean(chrom2_ild)
 
-
+    del chrom1_mut_num, chrom2_mut_num, chrom3_mut_num, chrom1and2_mut_num, total_mut_num
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
+    del chrom1_ild, chrom2_ild, chrom3_ild
 
     summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
@@ -755,14 +829,15 @@ def alpha1_3(arg):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    del ild_all, ild_quant
     #Append to data list to form data frame outside loop (faster than appending data frame)
     #data.append(summary_statistics)
-    x = pd.DataFrame(summary_statistics).T
+    x = DataFrame(summary_statistics).T
 
     x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
-    
+
 def alpha1_1(arg):
-    #data = [] #initialize list to store summary statistics 
+       
     alpha = 1.1
     sample_size = 50
     Ne = 1e5
@@ -775,8 +850,11 @@ def alpha1_1(arg):
         #random_seed=1234,
     )
 
+    #del rate_map
 
     mts = msprime.sim_mutations(ts, rate=1e-8, random_seed=5678) #simulate mutations on treekit
+
+    
 
     np.set_printoptions(legacy="1.21") #exclude dbtype from np arrays
     summary_statistics = [] #Initialize list of summary statistics
@@ -820,14 +898,15 @@ def alpha1_1(arg):
     summary_statistics.append(afs_quant[3]) #11th column 0.7
     summary_statistics.append(afs_quant[4]) #12th column 0.9
 
-
+    del afs_entries
+    del afs_quant
 
     num_windows = 30
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
 
-
+    del D_array
 
     ts_chroms = []
     for j in range(len(chrom_positions) - 1): #split genome into chromosomes
@@ -836,51 +915,22 @@ def alpha1_1(arg):
         ts_chroms.append(chrom_ts)
         #print(chrom_ts.sequence_length)
 
+    
 
     gn = mts.genotype_matrix()
     # print("Converted to genotype matrix...")
     r = allel.rogers_huff_r(gn)
+
+    del gn
     # print("Calculated r...")
     s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
     arr = mts.sites_position #array of site positions
     result = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
-    #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
-    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
-
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
-    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
-
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
-    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-
-
-    #Upper triangle of matrix to get rid of duplicated values
-    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
-    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
-    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
-
-
-
-    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
-    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
-    #r2_quant
-
-
-    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
-    summary_statistics.append(r2_quant[1])
-    summary_statistics.append(r2_quant[2])
-    summary_statistics.append(r2_quant[3])
-    summary_statistics.append(r2_quant[4])
-    summary_statistics.append(np.nanmean(r2))
-    summary_statistics.append(np.nanvar(r2))
-
     scaled_ld = result * s #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
+    del arr, result, ts
     #Same procedure as r^2 to get only LD on same chromosome
     chrom1_mut_num = ts_chroms[0].get_num_mutations()
     chrom1_scaled_ld = scaled_ld[:chrom1_mut_num,:chrom1_mut_num]
@@ -893,7 +943,7 @@ def alpha1_1(arg):
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_scaled_ld = scaled_ld[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
-
+    
 
     chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld)]
     chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld)]
@@ -902,8 +952,10 @@ def alpha1_1(arg):
 
 
     scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+
+    del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
     scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
-    scaled_r2_quant
 
 
     summary_statistics.append(scaled_r2_quant[0]) #22nd-28th columns scaled r^2
@@ -913,6 +965,44 @@ def alpha1_1(arg):
     summary_statistics.append(scaled_r2_quant[4])
     summary_statistics.append(np.nanmean(scaled_r2))
     summary_statistics.append(np.nanvar(scaled_r2))
+
+    del scaled_r2, scaled_r2_quant, scaled_ld
+    
+    #Get LD only on same chromosomes
+    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
+
+    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
+    chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+
+    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    total_mut_num = chrom1and2_mut_num + chrom3_mut_num
+    chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+
+    
+    #Upper triangle of matrix to get rid of duplicated values
+    chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+    chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
+    chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
+
+
+
+    r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
+    r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
+    
+    del chrom1_ld, chrom2_ld, chrom3_ld
+
+
+    summary_statistics.append(r2_quant[0]) #15th-21st columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[1])
+    summary_statistics.append(r2_quant[2])
+    summary_statistics.append(r2_quant[3])
+    summary_statistics.append(r2_quant[4])
+    summary_statistics.append(np.nanmean(r2))
+    summary_statistics.append(np.nanvar(r2))
+
+    del r2, r2_quant
 
     #Interchromosomal LD
     chrom1_ild = s[:chrom1_mut_num,chrom1_mut_num:]
@@ -926,10 +1016,11 @@ def alpha1_1(arg):
     chrom3_ild = np.matrix.flatten(chrom3_ild)
     #np.nanmean(chrom2_ild)
 
-
+    del chrom1_mut_num, chrom2_mut_num, chrom3_mut_num, chrom1and2_mut_num, total_mut_num
     ild_all = np.concatenate((chrom1_ild, chrom2_ild, chrom3_ild))
     ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
+    del chrom1_ild, chrom2_ild, chrom3_ild
 
     summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
     summary_statistics.append(ild_quant[1])
@@ -939,13 +1030,16 @@ def alpha1_1(arg):
     summary_statistics.append(np.nanmean(ild_all))
     summary_statistics.append(np.nanvar(ild_all))
 
+    del ild_all, ild_quant
     #Append to data list to form data frame outside loop (faster than appending data frame)
     #data.append(summary_statistics)
-    x = pd.DataFrame(summary_statistics).T
+    x = DataFrame(summary_statistics).T
 
     x.to_csv('summary_statistics.csv', index = False, mode = 'a', header = False)
-    
-worker_num = 5
+
+
+import concurrent.futures
+worker_num = 7
 with concurrent.futures.ThreadPoolExecutor(max_workers=worker_num) as executor:
     list(executor.map(alpha1_9, range(250)))
 

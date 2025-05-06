@@ -7,8 +7,6 @@ import allel
 from pandas import DataFrame
 
 
-
-
 def alpha1_9(arg):
     r_chrom = 1e-8 #Recombination rate
     r_break = math.log(2) #Recombination rate needed to satisfy probability 2^-t inheritance of two chromsomes
@@ -63,17 +61,17 @@ def alpha1_9(arg):
     summary_statistics.append(Ne) #Second column is Ne
     summary_statistics.append(alpha) #Third column is alpha parameter
     summary_statistics.append(1) #Fourth column is rho/theta
-    S = mts.get_num_mutations()
+    S = mts.num_sites
     summary_statistics.append(S) #Fifth column is number of segregating sites
     normalized_S = mts.segregating_sites(span_normalise=True)
     summary_statistics.append(normalized_S) #Sixth column is span normalized S
     
     num_windows = 30
-    pi_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
-    summary_statistics.append(np.nanmean(pi_array)) #13th column is mean Tajima's D
-    summary_statistics.append(np.nanvar(pi_array))
+    pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+    summary_statistics.append(np.nanmean(pi_array)) #Seventh column is mean pi
+    summary_statistics.append(np.nanvar(pi_array)) #Eighth column is variance of pi
     pi = mts.diversity()
-    summary_statistics.append(pi) #Seventh column is nucleotide diversity
+    summary_statistics.append(pi) #Ninth column is nucleotide diversity
 
 
     afs = mts.allele_frequency_spectrum(span_normalise=False, polarised=False)
@@ -88,19 +86,19 @@ def alpha1_9(arg):
     #len(afs_entries)
 
     afs_quant = np.quantile(afs_entries, [0.1, 0.3, 0.5, 0.7, 0.9])
-    summary_statistics.append(afs_quant[0]) #8th column is AFS quantile 0.1
-    summary_statistics.append(afs_quant[1]) #9th column 0.3
-    summary_statistics.append(afs_quant[2]) #10th column 0.5
-    summary_statistics.append(afs_quant[3]) #11th column 0.7
-    summary_statistics.append(afs_quant[4]) #12th column 0.9
+    summary_statistics.append(afs_quant[0]) #10th column is AFS quantile 0.1
+    summary_statistics.append(afs_quant[1]) #11th column 0.3
+    summary_statistics.append(afs_quant[2]) #12th column 0.5
+    summary_statistics.append(afs_quant[3]) #13th column 0.7
+    summary_statistics.append(afs_quant[4]) #14th column 0.9
 
     del afs_entries
     del afs_quant
 
     
     D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
-    summary_statistics.append(np.nanmean(D_array)) #13th column is mean Tajima's D
-    summary_statistics.append(np.nanvar(D_array)) #14th column is variance of Tajima's D
+    summary_statistics.append(np.nanmean(D_array)) #15th column is mean Tajima's D
+    summary_statistics.append(np.nanvar(D_array)) #16th column is variance of Tajima's D
 
     del D_array
 
@@ -128,14 +126,14 @@ def alpha1_9(arg):
 
     del arr, ts
     #Get the lengths of homozygous runs
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -154,7 +152,7 @@ def alpha1_9(arg):
     homozygous_quant = np.nanquantile(homozygous, [0.1,0.3,0.5,0.7,0.9])
 
 
-    summary_statistics.append(homozygous_quant[0]) #15th-21st columns scaled r^2
+    summary_statistics.append(homozygous_quant[0]) #17th-23rd columns lengths of homozygosity
     summary_statistics.append(homozygous_quant[1])
     summary_statistics.append(homozygous_quant[2])
     summary_statistics.append(homozygous_quant[3])
@@ -165,14 +163,14 @@ def alpha1_9(arg):
     del homozygous, homozygous_quant, pairwise_distances
     
     #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -190,7 +188,7 @@ def alpha1_9(arg):
     del chrom1_ld, chrom2_ld, chrom3_ld
 
 
-    summary_statistics.append(r2_quant[0]) #22nd-28th columns are r^2 quantiles, mean, and variance
+    summary_statistics.append(r2_quant[0]) #24th-30th columns are r^2 quantiles, mean, and variance
     summary_statistics.append(r2_quant[1])
     summary_statistics.append(r2_quant[2])
     summary_statistics.append(r2_quant[3])
@@ -218,7 +216,7 @@ def alpha1_9(arg):
 
     del chrom1_ild, chrom2_ild, chrom3_ild
 
-    summary_statistics.append(ild_quant[0]) #29th-35th columns ILD
+    summary_statistics.append(ild_quant[0]) #31st-37th columns ILD
     summary_statistics.append(ild_quant[1])
     summary_statistics.append(ild_quant[2])
     summary_statistics.append(ild_quant[3])
@@ -288,13 +286,13 @@ def alpha1_7(arg):
     summary_statistics.append(Ne) #Second column is Ne
     summary_statistics.append(alpha) #Third column is alpha parameter
     summary_statistics.append(1) #Fourth column is rho/theta
-    S = mts.get_num_mutations()
+    S = mts.num_sites
     summary_statistics.append(S) #Fifth column is number of segregating sites
     normalized_S = mts.segregating_sites(span_normalise=True)
     summary_statistics.append(normalized_S) #Sixth column is span normalized S
     
     num_windows = 30
-    pi_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+    pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(pi_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(pi_array))
     pi = mts.diversity()
@@ -353,14 +351,14 @@ def alpha1_7(arg):
 
     del arr, ts
     #Get the lengths of homozygous runs
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -390,14 +388,14 @@ def alpha1_7(arg):
     del homozygous, homozygous_quant, pairwise_distances
     
     #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -512,13 +510,13 @@ def alpha1_5(arg):
     summary_statistics.append(Ne) #Second column is Ne
     summary_statistics.append(alpha) #Third column is alpha parameter
     summary_statistics.append(1) #Fourth column is rho/theta
-    S = mts.get_num_mutations()
+    S = mts.num_sites
     summary_statistics.append(S) #Fifth column is number of segregating sites
     normalized_S = mts.segregating_sites(span_normalise=True)
     summary_statistics.append(normalized_S) #Sixth column is span normalized S
     
     num_windows = 30
-    pi_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+    pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(pi_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(pi_array))
     pi = mts.diversity()
@@ -577,14 +575,14 @@ def alpha1_5(arg):
 
     del arr, ts
     #Get the lengths of homozygous runs
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -614,14 +612,14 @@ def alpha1_5(arg):
     del homozygous, homozygous_quant, pairwise_distances
     
     #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -736,13 +734,13 @@ def alpha1_3(arg):
     summary_statistics.append(Ne) #Second column is Ne
     summary_statistics.append(alpha) #Third column is alpha parameter
     summary_statistics.append(1) #Fourth column is rho/theta
-    S = mts.get_num_mutations()
+    S = mts.num_sites
     summary_statistics.append(S) #Fifth column is number of segregating sites
     normalized_S = mts.segregating_sites(span_normalise=True)
     summary_statistics.append(normalized_S) #Sixth column is span normalized S
     
     num_windows = 30
-    pi_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+    pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(pi_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(pi_array))
     pi = mts.diversity()
@@ -801,14 +799,14 @@ def alpha1_3(arg):
 
     del arr, ts
     #Get the lengths of homozygous runs
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -838,14 +836,14 @@ def alpha1_3(arg):
     del homozygous, homozygous_quant, pairwise_distances
     
     #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -960,13 +958,13 @@ def alpha1_1(arg):
     summary_statistics.append(Ne) #Second column is Ne
     summary_statistics.append(alpha) #Third column is alpha parameter
     summary_statistics.append(1) #Fourth column is rho/theta
-    S = mts.get_num_mutations()
+    S = mts.num_sites
     summary_statistics.append(S) #Fifth column is number of segregating sites
     normalized_S = mts.segregating_sites(span_normalise=True)
     summary_statistics.append(normalized_S) #Sixth column is span normalized S
     
     num_windows = 30
-    pi_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+    pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
     summary_statistics.append(np.nanmean(pi_array)) #13th column is mean Tajima's D
     summary_statistics.append(np.nanvar(pi_array))
     pi = mts.diversity()
@@ -1025,14 +1023,14 @@ def alpha1_1(arg):
 
     del arr, ts
     #Get the lengths of homozygous runs
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 
@@ -1062,14 +1060,14 @@ def alpha1_1(arg):
     del homozygous, homozygous_quant, pairwise_distances
     
     #Get LD only on same chromosomes
-    chrom1_mut_num = ts_chroms[0].get_num_mutations()
+    chrom1_mut_num = ts_chroms[0].num_sites
     chrom1_ld = s[:chrom1_mut_num,:chrom1_mut_num]
 
-    chrom2_mut_num = ts_chroms[1].get_num_mutations()
+    chrom2_mut_num = ts_chroms[1].num_sites
     chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
     chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
 
-    chrom3_mut_num = ts_chroms[2].get_num_mutations()
+    chrom3_mut_num = ts_chroms[2].num_sites
     total_mut_num = chrom1and2_mut_num + chrom3_mut_num
     chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
 

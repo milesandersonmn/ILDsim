@@ -70,13 +70,17 @@ summary_statistics.append(normalized_S) #Sixth column is span normalized S
 num_windows = 30
 pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
 summary_statistics.append(np.nanmean(pi_array)) #Seventh column is mean pi
+summary_statistics.append(scipy.stats.hmean(pi_array, nan_policy = 'omit'))
 summary_statistics.append(np.nanvar(pi_array)) #Eighth column is variance of pi
 pi = mts.diversity()
 summary_statistics.append(pi) #Ninth column is nucleotide diversity
 
 
 afs = mts.allele_frequency_spectrum(span_normalise=False, polarised=False)
-
+print(afs)
+print(sum(afs))
+print(len(afs))
+print(sum(afs[15:])/sum(afs))
 afs_entries = [] #initialize list of afs entries. Each element corresponds to an allele's frequency as a proportion e.g. singleton, doubleton, etc.
 
 for x in range(1, sample_size + 2):
@@ -114,18 +118,27 @@ for j in range(len(chrom_positions) - 1): #split genome into chromosomes
 
 gn = mts.genotype_matrix()
 # print("Converted to genotype matrix...")
+print(gn)
 r = allel.rogers_huff_r(gn)
-print(mts.num_sites)
-print(mts.num_mutations)
+
+#f = allel.inbreeding_coefficient(gn)
+#print(f)
 del gn
 # print("Calculated r...")
 s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
-
+print(s)
 arr = mts.sites_position #array of site positions
-print(len(arr))
+#print(len(arr))
 pairwise_distances = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
-x = DataFrame(pairwise_distances)
-x.to_csv('test_pd.csv', index = False, mode = 'a', header = False)
+h = allel.HaplotypeArray(mts.genotype_matrix())
+allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))
+print(np.mean(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
+print(np.std(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
+print(np.var(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
+hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
+pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
+print(pairwise_matrix)
+print(pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)])
 
 #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
@@ -151,7 +164,6 @@ chrom3_homozygous = chrom3_homozygous[np.triu_indices_from(chrom3_homozygous)]
 
 
 homozygous = np.concatenate((chrom1_homozygous, chrom2_homozygous, chrom3_homozygous))
-
 del chrom1_homozygous, chrom2_homozygous, chrom3_homozygous
 
 homozygous_quant = np.nanquantile(homozygous, [0.1,0.3,0.5,0.7,0.9])
@@ -178,14 +190,14 @@ chrom2_ld = s[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_n
 chrom3_mut_num = ts_chroms[2].num_sites
 total_mut_num = chrom1and2_mut_num + chrom3_mut_num
 chrom3_ld = s[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
-print("number of mutations", chrom1_mut_num+chrom2_mut_num+chrom3_mut_num)
-print("number of sites", ts_chroms[0].num_sites+ts_chroms[1].num_sites+ts_chroms[2].num_sites)
+#print("number of mutations", chrom1_mut_num+chrom2_mut_num+chrom3_mut_num)
+#print("number of sites", ts_chroms[0].num_sites+ts_chroms[1].num_sites+ts_chroms[2].num_sites)
 #Upper triangle of matrix to get rid of duplicated values
-chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld)]
+chrom1_ld = chrom1_ld[np.triu_indices_from(chrom1_ld, k=1)]
 chrom2_ld = chrom2_ld[np.triu_indices_from(chrom2_ld)]
 chrom3_ld = chrom3_ld[np.triu_indices_from(chrom3_ld)]
 
-
+print(chrom1_ld)
 
 r2 = np.concatenate((chrom1_ld, chrom2_ld, chrom3_ld))
 r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])

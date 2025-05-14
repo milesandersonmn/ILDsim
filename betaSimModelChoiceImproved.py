@@ -1329,8 +1329,8 @@ def alpha1_1(arg):
     x.to_csv('summary_statistics_improved.csv', index = False, mode = 'a', header = False)
     
 import concurrent.futures
-worker_num = 7
-reps = 1
+worker_num = 18
+reps = 25000
 with concurrent.futures.ThreadPoolExecutor(max_workers=worker_num) as executor:
     list(executor.map(alpha1_9, range(reps)))
 

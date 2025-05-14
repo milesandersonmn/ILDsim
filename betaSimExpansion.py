@@ -1352,8 +1352,8 @@ def alpha1_1(arg):
     
   
 import concurrent.futures
-worker_num = 7
-reps = 1
+worker_num = 18
+reps = 25000
 with concurrent.futures.ThreadPoolExecutor(max_workers=worker_num) as executor:
     list(executor.map(alpha1_9, range(reps)))
 

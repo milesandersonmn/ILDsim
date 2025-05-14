@@ -147,6 +147,12 @@ def alpha1_9(arg):
     hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
     pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
     hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
+    hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+    summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+    summary_statistics.append(hamming_quant[1]) #28th column 0.3
+    summary_statistics.append(hamming_quant[2]) #29th column 0.5
+    summary_statistics.append(hamming_quant[3]) #30th column 0.7
+    summary_statistics.append(hamming_quant[4]) #31 column 0.9
     summary_statistics.append(np.nanmean(hamming_array))
     summary_statistics.append(np.nanstd(hamming_array))
     summary_statistics.append(np.nanvar(hamming_array))
@@ -406,9 +412,15 @@ def alpha1_7(arg):
     hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
     pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
     hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
-    summary_statistics.append(np.nanmean(hamming_array))
-    summary_statistics.append(np.nanstd(hamming_array))
-    summary_statistics.append(np.nanvar(hamming_array))
+    hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+    summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+    summary_statistics.append(hamming_quant[1]) #28th column 0.3
+    summary_statistics.append(hamming_quant[2]) #29th column 0.5
+    summary_statistics.append(hamming_quant[3]) #30th column 0.7
+    summary_statistics.append(hamming_quant[4]) #31 column 0.9
+    summary_statistics.append(np.nanmean(hamming_array)) #38 mean hamming
+    summary_statistics.append(np.nanstd(hamming_array)) #39 std hamming
+    summary_statistics.append(np.nanvar(hamming_array)) #40 var hamming
     #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
     del arr, ts
@@ -664,9 +676,15 @@ def alpha1_5(arg):
     hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
     pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
     hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
-    summary_statistics.append(np.nanmean(hamming_array))
-    summary_statistics.append(np.nanstd(hamming_array))
-    summary_statistics.append(np.nanvar(hamming_array))
+    hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+    summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+    summary_statistics.append(hamming_quant[1]) #28th column 0.3
+    summary_statistics.append(hamming_quant[2]) #29th column 0.5
+    summary_statistics.append(hamming_quant[3]) #30th column 0.7
+    summary_statistics.append(hamming_quant[4]) #31 column 0.9
+    summary_statistics.append(np.nanmean(hamming_array)) #38 mean hamming
+    summary_statistics.append(np.nanstd(hamming_array)) #39 std hamming
+    summary_statistics.append(np.nanvar(hamming_array)) #40 var hamming
     #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
     del arr, ts
@@ -922,9 +940,15 @@ def alpha1_3(arg):
     hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
     pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
     hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
-    summary_statistics.append(np.nanmean(hamming_array))
-    summary_statistics.append(np.nanstd(hamming_array))
-    summary_statistics.append(np.nanvar(hamming_array))
+    hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+    summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+    summary_statistics.append(hamming_quant[1]) #28th column 0.3
+    summary_statistics.append(hamming_quant[2]) #29th column 0.5
+    summary_statistics.append(hamming_quant[3]) #30th column 0.7
+    summary_statistics.append(hamming_quant[4]) #31 column 0.9
+    summary_statistics.append(np.nanmean(hamming_array)) #38 mean hamming
+    summary_statistics.append(np.nanstd(hamming_array)) #39 std hamming
+    summary_statistics.append(np.nanvar(hamming_array)) #40 var hamming
     #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
     del arr, ts
@@ -1180,9 +1204,15 @@ def alpha1_1(arg):
     hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
     pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
     hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
-    summary_statistics.append(np.nanmean(hamming_array))
-    summary_statistics.append(np.nanstd(hamming_array))
-    summary_statistics.append(np.nanvar(hamming_array))
+    hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+    summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+    summary_statistics.append(hamming_quant[1]) #28th column 0.3
+    summary_statistics.append(hamming_quant[2]) #29th column 0.5
+    summary_statistics.append(hamming_quant[3]) #30th column 0.7
+    summary_statistics.append(hamming_quant[4]) #31 column 0.9
+    summary_statistics.append(np.nanmean(hamming_array)) #38 mean hamming
+    summary_statistics.append(np.nanstd(hamming_array)) #39 std hamming
+    summary_statistics.append(np.nanvar(hamming_array)) #40 var hamming
     #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
     del arr, ts

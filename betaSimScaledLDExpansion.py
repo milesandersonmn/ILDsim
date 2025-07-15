@@ -264,7 +264,7 @@ def alpha1_9(arg):
     summary_statistics.append(ild_quant[3])
     summary_statistics.append(ild_quant[4])
     summary_statistics.append(np.nanmean(ild_all))
-    summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
+    
     summary_statistics.append(np.nanvar(ild_all))
     summary_statistics.append(np.nanstd(ild_all))
 
@@ -601,7 +601,7 @@ def alpha1_7(arg):
     summary_statistics.append(ild_quant[3])
     summary_statistics.append(ild_quant[4])
     summary_statistics.append(np.nanmean(ild_all))
-    summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
+    
     summary_statistics.append(np.nanvar(ild_all))
     summary_statistics.append(np.nanstd(ild_all))
 
@@ -938,7 +938,7 @@ def alpha1_5(arg):
     summary_statistics.append(ild_quant[3])
     summary_statistics.append(ild_quant[4])
     summary_statistics.append(np.nanmean(ild_all))
-    summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
+    
     summary_statistics.append(np.nanvar(ild_all))
     summary_statistics.append(np.nanstd(ild_all))
 
@@ -1276,7 +1276,7 @@ def alpha1_3(arg):
     summary_statistics.append(ild_quant[3])
     summary_statistics.append(ild_quant[4])
     summary_statistics.append(np.nanmean(ild_all))
-    summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
+    
     summary_statistics.append(np.nanvar(ild_all))
     summary_statistics.append(np.nanstd(ild_all))
 
@@ -1614,7 +1614,6 @@ def alpha1_1(arg):
     summary_statistics.append(ild_quant[3])
     summary_statistics.append(ild_quant[4])
     summary_statistics.append(np.nanmean(ild_all))
-    summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
     summary_statistics.append(np.nanvar(ild_all))
     summary_statistics.append(np.nanstd(ild_all))
 

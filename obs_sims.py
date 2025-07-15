@@ -27,14 +27,17 @@ rate_map = msprime.RateMap(position=map_positions, rate=rates) #Rate map for sep
 #del r_chrom, r_break, map_positions, rates
 
 #data = [] #initialize list to store summary statistics 
-alpha = 1.5
+alpha = 1.1
 sample_size = 50
+Ne = np.random.randint(25000, 100000)
+#Ne = 1e5
+#for i in range(reps):
 Ne = np.random.randint(25000, 100000)
 growth_rate = np.random.uniform(low = 0.00001, high = 0.1)
 #Ne = 1e5
 #for i in range(reps):
 demography = msprime.Demography()
-demography.add_population(name="A", initial_size=Ne, growth_rate=-0.001)
+demography.add_population(name="A", initial_size=Ne, growth_rate=0)
 ts = msprime.sim_ancestry(
     samples = sample_size,
     demography=demography,
@@ -46,7 +49,7 @@ ts = msprime.sim_ancestry(
 
 #del rate_map
 
-mts = msprime.sim_mutations(ts, rate=1e-8) #simulate mutations on treekit
+mts = msprime.sim_mutations(ts, rate=1e-9) #simulate mutations on treekit
 
 
 
@@ -73,12 +76,12 @@ summary_statistics.append(normalized_S) #Sixth column is span normalized S
 
 num_windows = 30
 pi_array = mts.diversity(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
-summary_statistics.append(np.nanmean(pi_array)) #7 mean pi
-summary_statistics.append(scipy.stats.hmean(pi_array, nan_policy = 'omit')) #8 column is harmonic mean pi
-summary_statistics.append(np.nanvar(pi_array)) #9 column is variance of pi
-summary_statistics.append(np.nanstd(pi_array)) #10 std pi
+summary_statistics.append(np.nanmean(pi_array))
+summary_statistics.append(scipy.stats.hmean(pi_array, nan_policy = 'omit')) #Seventh column is mean pi
+summary_statistics.append(np.nanvar(pi_array)) #Eighth column is variance of pi
+summary_statistics.append(np.nanstd(pi_array))
 pi = mts.diversity()
-summary_statistics.append(pi) #11 column is nucleotide diversity
+summary_statistics.append(pi) #Ninth column is nucleotide diversity
 
 
 afs = mts.allele_frequency_spectrum(span_normalise=False, polarised=False)
@@ -92,7 +95,7 @@ for x in range(1, sample_size + 2):
 afs_entries = np.array(afs_entries) 
 #len(afs_entries)
 
-summary_statistics.append(afs[1]/sum(afs)) #12-26 lumped tail afs
+summary_statistics.append(afs[1]/sum(afs))
 summary_statistics.append(afs[2]/sum(afs))
 summary_statistics.append(afs[3]/sum(afs))
 summary_statistics.append(afs[4]/sum(afs))
@@ -109,19 +112,19 @@ summary_statistics.append(afs[14]/sum(afs))
 summary_statistics.append(sum(afs[15:])/sum(afs))
 
 afs_quant = np.quantile(afs_entries, [0.1, 0.3, 0.5, 0.7, 0.9])
-summary_statistics.append(afs_quant[0]) #27th column is AFS quantile 0.1
-summary_statistics.append(afs_quant[1]) #28th column 0.3
-summary_statistics.append(afs_quant[2]) #29th column 0.5
-summary_statistics.append(afs_quant[3]) #30th column 0.7
-summary_statistics.append(afs_quant[4]) #31 column 0.9
+summary_statistics.append(afs_quant[0]) #10th column is AFS quantile 0.1
+summary_statistics.append(afs_quant[1]) #11th column 0.3
+summary_statistics.append(afs_quant[2]) #12th column 0.5
+summary_statistics.append(afs_quant[3]) #13th column 0.7
+summary_statistics.append(afs_quant[4]) #14th column 0.9
 
 del afs_entries
 del afs_quant
 
 D_array = mts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
-summary_statistics.append(np.nanmean(D_array)) #32 column is mean Tajima's D
-summary_statistics.append(np.nanvar(D_array)) #33 column is variance of Tajima's D
-summary_statistics.append(np.nanstd(D_array)) #34 std D
+summary_statistics.append(np.nanmean(D_array)) #15th column is mean Tajima's D
+summary_statistics.append(np.nanvar(D_array)) #16th column is variance of Tajima's D
+summary_statistics.append(np.nanstd(D_array))
 del D_array
 
 ts_chroms = []
@@ -142,39 +145,56 @@ del gn
 s = scipy.spatial.distance.squareform(r ** 2) #calculate r^2
 
 arr = mts.sites_position #array of site positions
+print(arr)
 pairwise_distances = abs(arr[:, None] - arr) #broadcast subtraction to create matrix of pairwise distances between sites
 
 h = allel.HaplotypeArray(mts.genotype_matrix())
 #allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))
-summary_statistics.append(np.nanmean(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2)))) #35 mean inbreeding
-summary_statistics.append(np.nanstd(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2)))) #36 std inbreeding
-summary_statistics.append(np.nanvar(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2)))) #37 var inbreeding
+summary_statistics.append(np.nanmean(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
+summary_statistics.append(np.nanstd(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
+summary_statistics.append(np.nanvar(allel.inbreeding_coefficient(h.to_genotypes(ploidy=2))))
 hamming_distances = scipy.spatial.distance.pdist(h, metric='hamming') * h.shape[1]
 pairwise_matrix = scipy.spatial.distance.squareform(hamming_distances)
 hamming_array = pairwise_matrix[np.triu_indices_from(pairwise_matrix, k=1)]
-summary_statistics.append(np.nanmean(hamming_array)) #38 mean hamming
-summary_statistics.append(np.nanstd(hamming_array)) #39 std hamming
-summary_statistics.append(np.nanvar(hamming_array)) #40 var hamming
+hamming_quant = np.quantile(hamming_array, [0.1, 0.3, 0.5, 0.7, 0.9])
+summary_statistics.append(hamming_quant[0]) #27th column is AFS quantile 0.1
+summary_statistics.append(hamming_quant[1]) #28th column 0.3
+summary_statistics.append(hamming_quant[2]) #29th column 0.5
+summary_statistics.append(hamming_quant[3]) #30th column 0.7
+summary_statistics.append(hamming_quant[4]) #31 column 0.9
+summary_statistics.append(np.nanmean(hamming_array))
+summary_statistics.append(np.nanstd(hamming_array))
+summary_statistics.append(np.nanvar(hamming_array))
 #scaled_ld = np.multiply(result, s) #scale LD by distance between pairs of SNPs; matrix multiplication of distances times r^2
 
-del arr, ts
+del ts
 #Get the lengths of homozygous runs
 chrom1_mut_num = ts_chroms[0].num_sites
-chrom1_homozygous = pairwise_distances[:chrom1_mut_num,:chrom1_mut_num]
+chrom1_homozygous = arr[:chrom1_mut_num]
+
+differences = [chrom1_homozygous[i+1] - chrom1_homozygous[i] for i in range(len(chrom1_homozygous)-1)]
+
+print(differences)
 
 chrom2_mut_num = ts_chroms[1].num_sites
 chrom1and2_mut_num = chrom1_mut_num + chrom2_mut_num
-chrom2_homozygous = pairwise_distances[chrom1_mut_num:chrom1and2_mut_num, chrom1_mut_num:chrom1and2_mut_num]
+chrom2_homozygous = arr[chrom1_mut_num:chrom1and2_mut_num]
+
+differences = [chrom2_homozygous[i+1] - chrom2_homozygous[i] for i in range(len(chrom2_homozygous)-1)]
+
+print(differences)
 
 chrom3_mut_num = ts_chroms[2].num_sites
 total_mut_num = chrom1and2_mut_num + chrom3_mut_num
-chrom3_homozygous = pairwise_distances[chrom1and2_mut_num:total_mut_num,chrom1and2_mut_num:total_mut_num]
+chrom3_homozygous = arr[chrom1and2_mut_num:total_mut_num]
 
+differences = [chrom3_homozygous[i+1] - chrom3_homozygous[i] for i in range(len(chrom3_homozygous)-1)]
 
+print(differences)
 
-chrom1_homozygous = chrom1_homozygous[np.triu_indices_from(chrom1_homozygous, k=1)]
-chrom2_homozygous = chrom2_homozygous[np.triu_indices_from(chrom2_homozygous, k=1)]
-chrom3_homozygous = chrom3_homozygous[np.triu_indices_from(chrom3_homozygous, k=1)]
+#chrom1_homozygous = chrom1_homozygous[np.triu_indices_from(chrom1_homozygous, k=1)]
+#chrom2_homozygous = chrom2_homozygous[np.triu_indices_from(chrom2_homozygous, k=1)]
+#chrom3_homozygous = chrom3_homozygous[np.triu_indices_from(chrom3_homozygous, k=1)]
 
 
 
@@ -185,13 +205,13 @@ del chrom1_homozygous, chrom2_homozygous, chrom3_homozygous
 homozygous_quant = np.nanquantile(homozygous, [0.1,0.3,0.5,0.7,0.9])
 
 
-summary_statistics.append(homozygous_quant[0]) #41th-49 columns lengths of homozygosity
+summary_statistics.append(homozygous_quant[0]) #17th-23rd columns lengths of homozygosity
 summary_statistics.append(homozygous_quant[1])
 summary_statistics.append(homozygous_quant[2])
 summary_statistics.append(homozygous_quant[3])
 summary_statistics.append(homozygous_quant[4])
 summary_statistics.append(np.nanmean(homozygous))
-summary_statistics.append(scipy.stats.hmean(homozygous, nan_policy = 'omit'))
+summary_statistics.append(scipy.stats.hmean(homozygous, nan_policy = 'omit'))   
 summary_statistics.append(np.nanvar(homozygous))
 summary_statistics.append(np.nanstd(homozygous))
 
@@ -223,13 +243,12 @@ r2_quant = np.nanquantile(r2, [0.1,0.3,0.5,0.7,0.9])
 del chrom1_ld, chrom2_ld, chrom3_ld
 
 
-summary_statistics.append(r2_quant[0]) #50th-58th columns are r^2 quantiles, mean, and variance
+summary_statistics.append(r2_quant[0]) #24th-30th columns are r^2 quantiles, mean, and variance
 summary_statistics.append(r2_quant[1])
 summary_statistics.append(r2_quant[2])
 summary_statistics.append(r2_quant[3])
 summary_statistics.append(r2_quant[4])
-summary_statistics.append(np.nanmean(r2))
-summary_statistics.append(scipy.stats.hmean(r2, nan_policy = 'omit'))
+summary_statistics.append(np.nanmean(r2))  
 summary_statistics.append(np.nanvar(r2))
 summary_statistics.append(np.nanstd(r2))
 
@@ -253,17 +272,84 @@ ild_quant = np.nanquantile(ild_all, [0.1,0.3,0.5,0.7,0.9])
 
 del chrom1_ild, chrom2_ild, chrom3_ild
 
-summary_statistics.append(ild_quant[0]) #59-67th columns ILD
+summary_statistics.append(ild_quant[0]) #31st-37th columns ILD
 summary_statistics.append(ild_quant[1])
 summary_statistics.append(ild_quant[2])
 summary_statistics.append(ild_quant[3])
 summary_statistics.append(ild_quant[4])
 summary_statistics.append(np.nanmean(ild_all))
-summary_statistics.append(scipy.stats.hmean(ild_all, nan_policy = 'omit'))
 summary_statistics.append(np.nanvar(ild_all))
 summary_statistics.append(np.nanstd(ild_all))
 
 del ild_all, ild_quant
+
+#Get LD only on same chromosomes
+gn_chrom1 = ts_chroms[0].genotype_matrix()
+# print("Converted to genotype matrix...")
+r_chrom1 = allel.rogers_huff_r(gn_chrom1)
+
+
+# print("Calculated r...")
+s_chrom1 = scipy.spatial.distance.squareform(r_chrom1 ** 2) #calculate r^2
+
+arr_chrom1 = ts_chroms[0].sites_position #array of site positions
+pairwise_distances_chrom1 = abs(arr_chrom1[:, None] - arr_chrom1) #broadcast subtraction to create matrix of pairwise distances between sites
+
+
+chrom1_scaled_ld = np.multiply(s_chrom1, pairwise_distances_chrom1)
+
+del s_chrom1, arr_chrom1, pairwise_distances_chrom1
+
+gn_chrom2 = ts_chroms[1].genotype_matrix()
+# print("Converted to genotype matrix...")
+r_chrom2 = allel.rogers_huff_r(gn_chrom2)
+
+s_chrom2 = scipy.spatial.distance.squareform(r_chrom2 ** 2) #calculate r^2
+
+arr_chrom2 = ts_chroms[1].sites_position #array of site positions
+pairwise_distances_chrom2 = abs(arr_chrom2[:, None] - arr_chrom2) #broadcast subtraction to create matrix of pairwise distances between sites
+
+
+chrom2_scaled_ld = np.multiply(s_chrom2, pairwise_distances_chrom2)
+
+del s_chrom2, arr_chrom2, pairwise_distances_chrom2
+
+gn_chrom3 = ts_chroms[2].genotype_matrix()
+# print("Converted to genotype matrix...")
+r_chrom3 = allel.rogers_huff_r(gn_chrom3)
+
+s_chrom3 = scipy.spatial.distance.squareform(r_chrom3 ** 2) #calculate r^2
+
+arr_chrom3 = ts_chroms[2].sites_position #array of site positions
+pairwise_distances_chrom3 = abs(arr_chrom3[:, None] - arr_chrom3) #broadcast subtraction to create matrix of pairwise distances between sites
+
+
+chrom3_scaled_ld = np.multiply(s_chrom3, pairwise_distances_chrom3)
+
+del s_chrom3, arr_chrom3, pairwise_distances_chrom3
+
+#Upper triangle of matrix to get rid of duplicated values
+chrom1_scaled_ld = chrom1_scaled_ld[np.triu_indices_from(chrom1_scaled_ld, k=1)]
+chrom2_scaled_ld = chrom2_scaled_ld[np.triu_indices_from(chrom2_scaled_ld, k=1)]
+chrom3_scaled_ld = chrom3_scaled_ld[np.triu_indices_from(chrom3_scaled_ld, k=1)]
+
+
+
+scaled_r2 = np.concatenate((chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld))
+scaled_r2_quant = np.nanquantile(scaled_r2, [0.1,0.3,0.5,0.7,0.9])
+
+del chrom1_scaled_ld, chrom2_scaled_ld, chrom3_scaled_ld
+
+
+summary_statistics.append(scaled_r2_quant[0]) #24th-30th columns are r^2 quantiles, mean, and variance
+summary_statistics.append(scaled_r2_quant[1])
+summary_statistics.append(scaled_r2_quant[2])
+summary_statistics.append(scaled_r2_quant[3])
+summary_statistics.append(scaled_r2_quant[4])
+summary_statistics.append(np.nanmean(scaled_r2))
+summary_statistics.append(np.nanvar(scaled_r2))
+summary_statistics.append(np.nanstd(scaled_r2))
+
 #Append to data list to form data frame outside loop (faster than appending data frame)
 #data.append(summary_statistics)
 x = DataFrame(summary_statistics).T
